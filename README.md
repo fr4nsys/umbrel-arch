@@ -80,7 +80,7 @@ sudo pacman -Syu --noconfirm
 
 # Installs necessary dependencies
 echo "Installing dependencies..."
-sudo pacman -S --noconfirm docker docker-compose avahi nss-mdns jq rsync curl git base-devel python
+sudo pacman -S --noconfirm docker docker-compose avahi nss-mdns jq rsync curl git base-devel python inetutils
 $AUR_HELPER -S --needed --noconfirm fswatch
 # Enables and starts Docker
 echo "Enabling and starting Docker..."
