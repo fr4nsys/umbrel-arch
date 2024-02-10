@@ -30,7 +30,7 @@ Umbrel and the Umbrel team have full permission to review, modify, and distribut
 git clone https://github.com/fr4nsys/umbrel-arch
 ```
 ```bash
-wget 
+wget https://raw.githubusercontent.com/fr4nsys/umbrel-arch/main/umbrel-arch.sh
 ```
 2. **Navigate** to the cloned directory.
 3. **Run the script** with the following command:
