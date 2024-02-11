@@ -33,12 +33,17 @@ git clone https://github.com/fr4nsys/umbrel-arch
 wget https://raw.githubusercontent.com/fr4nsys/umbrel-arch/main/umbrel-arch.sh
 ```
 2. **Navigate** to the cloned directory.
-3. **Run the script** with the following command:
+3. **Run the script** with the following command (without sudo or being root):
 
 ```bash
 ./umbrel-arch.sh
 ```
+4. *All in one** command:
 
+```bash
+wget https://raw.githubusercontent.com/fr4nsys/umbrel-arch/main/umbrel-arch.sh && chmod +x umbrel-arch.sh && ./umbrel-arch.sh
+```
+ 
 ## What the Script Does
 
 - **Updates your system:** Ensures that all your packages are up to date.
