@@ -1,67 +1,3 @@
-# umbrel-arch
-
-An unofficial Umbrel installer for Arch Linux &amp; derivatives. Umbrel team granted permission to review &amp; incorporate. Tested rigorously but carries no warranty. Proceed with caution &amp; test in a controlled environment.
-
-# Umbrel Installer for Arch Linux
-
-![Umbrel Logo](https://avatars.githubusercontent.com/u/59408891?s=200&v=4) ![Arch Linux Logo](https://raw.githubusercontent.com/archlinux/.github/main/profile/archlinux-logo-dark-scalable.svg)
-
-This repository provides a script to install [Umbrel](https://umbrel.com/umbrelos), on Arch Linux systems, including derivatives. This script aims to simplify the process of getting Umbrel up and running on Arch Linux, which is not officially supported by the Umbrel team as of now.
-
-![Umbrel Screen](https://camo.githubusercontent.com/997aad9ceccbc6f50bfaade3aced1f84184dfeb0568f35cbffe4b75a722ea9ba/68747470733a2f2f692e696d6775722e636f6d2f623849654772752e6a706567)
-
-## Disclaimer
-
-This script is **unofficial** and has been tested on Arch Linux and its derivatives. While it has been designed to work correctly out of the box, **I do not take any responsibility for any issues, data loss, or any other unwanted effects** that may occur from using this script. Always test it in a lab environment before running it on your primary system.
-
-Umbrel and the Umbrel team have full permission to review, modify, and distribute this script to add official support for Arch Linux if they choose to do so.
-
-## Prerequisites
-
-- An Arch Linux system (or a derivative)
-- `yay` or `paru` installed for managing AUR packages
-- Basic knowledge of Linux terminal and commands
-
-## Installation
-
-1. **Clone this repository** or download the script to your local machine.
-
-```bash
-git clone https://github.com/fr4nsys/umbrel-arch
-```
-```bash
-wget https://raw.githubusercontent.com/fr4nsys/umbrel-arch/main/umbrel-arch.sh
-```
-2. **Navigate** to the cloned directory.
-3. **Run the script** with the following command:
-
-```bash
-./umbrel-arch.sh
-```
-
-## What the Script Does
-
-- **Updates your system:** Ensures that all your packages are up to date.
-- **Installs necessary dependencies:** Includes Docker, Docker Compose, Avahi, nss-mdns, jq, rsync, curl, git, base-devel, python, and fswatch from AUR.
-- **Enables and starts Docker and Avahi services:** Prepares your system for running Umbrel.
-- **Downloads and installs Umbrel:** Fetches the latest version of Umbrel and installs it in your `$HOME/umbrel` directory.
-
-## Links
-
-- [Umbrel Website](https://umbrel.com/umbrelos)
-- [Umbrel GitHub Repository](https://github.com/getumbrel/umbrel)
-- [Umbrel OS](https://github.com/getumbrel/umbrel-os)
-
-## Known Issues
-
-- Errors with docker network, and dns relosution. Working on the dev script and issue open.
-
-	WARN[0000] network default: network.external.name is deprecated. Please set network.name with external: true Docker Compose version 2.23.3
-
-
-## Umbrel Arch Script
-
-```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -213,6 +149,22 @@ install_dependencies() {
   sudo systemctl enable --now docker.service
 }
 
+# Function to update docker-compose.yml for Umbrel
+update_docker_compose_file() {
+  echo "Updating docker-compose.yml to use the new network syntax..."
+  UMBREL_DOCKER_COMPOSE_FILE="$UMBREL_INSTALL_PATH/docker-compose.yml"
+  if [[ -f "$UMBREL_DOCKER_COMPOSE_FILE" ]]; then
+    # Backup original docker compose file
+    cp "$UMBREL_DOCKER_COMPOSE_FILE" "${UMBREL_DOCKER_COMPOSE_FILE}.bak"
+    
+    # Use sed to update (fix) the actual docker compose configuration to fix this error: WARN[0000] network default: network.external.name is deprecated. Please set network.name with external: true
+    sed -i 's/network.external.name/network.name/g' "$UMBREL_DOCKER_COMPOSE_FILE"
+    sed -i '/network.name/a \    external: true' "$UMBREL_DOCKER_COMPOSE_FILE"
+  else
+    echo "docker-compose.yml not found, skipping update."
+  fi
+}
+
 # Function to install and setup Umbrel
 install_and_setup_umbrel() {
   if [[ "$INSTALL_UMBREL" == "true" ]]; then
@@ -220,7 +172,10 @@ install_and_setup_umbrel() {
     mkdir -p "$UMBREL_INSTALL_PATH"
     UMBREL_VERSION=$(curl --silent "https://api.github.com/repos/$UMBREL_REPO/releases/latest" | jq -r ".tag_name")
     curl -L "https://github.com/$UMBREL_REPO/archive/$UMBREL_VERSION.tar.gz" | tar -xz --strip-components=1 -C "$UMBREL_INSTALL_PATH"
-     
+    
+    # Update docker-compose.yml before starting Umbrel
+    update_docker_compose_file
+    
     cd "$UMBREL_INSTALL_PATH"
     sudo ./scripts/configure
     echo "Executing Umbrel start script..."
@@ -237,12 +192,3 @@ main() {
 }
 
 main "$@"
-```
-
-## Contributions
-
-Contributions are welcome! If you have any improvements or bug fixes, please feel free to fork this repository, make your changes, and submit a pull request.
-
-## License
-
-This script is provided under [MIT License](LICENSE). Umbrel and its logo are trademarks of their respective owners and are used here for informational purposes only.

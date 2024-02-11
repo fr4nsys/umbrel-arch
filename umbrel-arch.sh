@@ -1,67 +1,175 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 set -euo pipefail
 
-# Initial configuration
-UMBREL_REPO="getumbrel/umbrel"
-UMBREL_PATH="$HOME/umbrel"
+# Arch Linux setup for Umbrel installation script
+
+# Default options
+PRINT_DOCKER_WARNING="true"
+INSTALL_PARU="true"
+INSTALL_YAY_DEPS="true"
+INSTALL_AVAHI="true"
+INSTALL_YQ="true"
+INSTALL_FSWATCH="true"
+INSTALL_DOCKER="true"
+INSTALL_DOCKER_COMPOSE="true"
+INSTALL_START_SCRIPT="true"
+INSTALL_UMBREL="true"
+AUTO_START_UMBREL="true"
 UMBREL_VERSION="release"
+UMBREL_REPO="getumbrel/umbrel"
+UMBREL_INSTALL_PATH="$HOME/umbrel"
 
-# Detect if yay is installed, otherwise, try with paru
-if command -v yay &> /dev/null; then
-    AUR_HELPER="yay"
-elif command -v paru &> /dev/null; then
-    AUR_HELPER="paru"
-else
-    echo "Error: yay or paru is not installed. Please install one of them to continue."
-    exit 1
-fi
+# Parse arguments
+for arg in "$@"; do
+  case $arg in
+    --no-docker-warning)
+      PRINT_DOCKER_WARNING="false"
+      shift
+      ;;
+    --no-install-avahi)
+      INSTALL_AVAHI="false"
+      shift
+      ;;
+    --no-install-yq)
+      INSTALL_YQ="false"
+      shift
+      ;;
+    --no-install-fswatch)
+      INSTALL_FSWATCH="false"
+      shift
+      ;;
+    --no-install-docker)
+      INSTALL_DOCKER="false"
+      shift
+      ;;
+    --no-install-compose)
+      INSTALL_DOCKER_COMPOSE="false"
+      shift
+      ;;
+    --no-install-start-script)
+      INSTALL_START_SCRIPT="false"
+      shift
+      ;;
+    --no-install-umbrel)
+      INSTALL_UMBREL="false"
+      shift
+      ;;
+    --no-auto-start-umbrel)
+      AUTO_START_UMBREL="false"
+      shift
+      ;;
+    --no-install-deps)
+      INSTALL_PARU="false"
+      INSTALL_YAY_DEPS="false"
+      INSTALL_AVAHI="false"
+      INSTALL_YQ="false"
+      INSTALL_FSWATCH="false"
+      INSTALL_DOCKER="false"
+      INSTALL_DOCKER_COMPOSE="false"
+      INSTALL_UMBREL="true"
+      shift
+      ;;
+    --version=*)
+      UMBREL_VERSION="${arg#*=}"
+      shift
+      ;;
+    --install-path=*)
+      UMBREL_INSTALL_PATH="${arg#*=}"
+      shift
+      ;;
+    *)
+      ;;
+  esac
+done
 
-# Updates the system
-echo "Updating the system..."
-sudo pacman -Syu --noconfirm
-
-# Installs necessary dependencies
-echo "Installing dependencies..."
-sudo pacman -S --noconfirm docker docker-compose avahi nss-mdns jq rsync curl git base-devel python inetutils
-$AUR_HELPER -S --needed --noconfirm fswatch
-# Enables and starts Docker
-echo "Enabling and starting Docker..."
-sudo systemctl enable --now docker.service
-
-# Enables and starts Avahi
-echo "Enabling and starting Avahi..."
-sudo systemctl enable --now avahi-daemon.service
-
-# Installs yq from AUR
-echo "Installing yq from AUR..."
-$AUR_HELPER -S --noconfirm yq
-
-# Downloads and installs Umbrel
-install_umbrel() {
-    echo "Installing Umbrel..."
-    local version=$(get_umbrel_version)
-    mkdir -p "$UMBREL_PATH"
-    curl -L "https://github.com/$UMBREL_REPO/archive/$version.tar.gz" | tar -xz --strip-components=1 -C "$UMBREL_PATH"
-    pushd "$UMBREL_PATH"
-    sudo ./scripts/start
-    popd
+# Function to detect AUR helper (yay or paru)
+detect_aur_helper() {
+  if command -v paru > /dev/null; then
+    echo "paru"
+  elif command -v yay > /dev/null; then
+    echo "yay"
+  else
+    echo ""
+  fi
 }
 
-# Gets the latest version of Umbrel
-get_umbrel_version() {
-    if [[ "$UMBREL_VERSION" == "release" ]]; then
-        version=$(curl --silent "https://api.github.com/repos/$UMBREL_REPO/releases/latest" | jq -r ".tag_name")
-        if [[ "$version" == "null" ]]; then
-            echo "Could not fetch the latest version of Umbrel." >&2
-            exit 1
-        fi
-        echo "$version"
+# Install Paru if neither yay nor paru is installed
+ensure_aur_helper() {
+  AUR_HELPER=$(detect_aur_helper)
+  if [[ -z "$AUR_HELPER" && "$INSTALL_PARU" == "true" ]]; then
+    read -p "Neither yay nor paru is installed. Would you like to install paru? [Y/n] " response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY]|"")$ ]]; then
+      install_paru
+      AUR_HELPER="paru"
     else
-        echo "$UMBREL_VERSION"
+      echo "Error: AUR helper (yay or paru) is required."
+      exit 1
     fi
+  elif [[ -z "$AUR_HELPER" ]]; then
+    echo "Error: AUR helper (yay or paru) is not installed and automatic installation is disabled."
+    exit 1
+  fi
 }
 
-install_umbrel
+install_paru() {
+  echo "Installing paru..."
+  sudo pacman -Sy --needed base-devel git
+  git clone https://aur.archlinux.org/paru.git
+  cd paru
+  makepkg -si --noconfirm
+  cd ..
+  rm -rf paru
+  AUR_HELPER="paru"
+}
 
-echo "Installation completed."
+# Function to install dependencies using pacman and AUR helper
+install_dependencies() {
+  echo "Updating the system..."
+  sudo pacman -Syu --noconfirm
+
+  echo "Installing dependencies from official repositories..."
+  sudo pacman -S --noconfirm docker docker-compose avahi nss-mdns jq rsync curl git base-devel python inetutils
+
+  if [[ "$INSTALL_YQ" == "true" ]]; then
+    echo "Installing yq using $AUR_HELPER..."
+    $AUR_HELPER -S --needed --noconfirm yq
+  fi
+
+  if [[ "$INSTALL_FSWATCH" == "true" ]]; then
+    echo "Installing fswatch using $AUR_HELPER..."
+    $AUR_HELPER -S --needed --noconfirm fswatch
+  fi
+
+  if [[ "$INSTALL_AVAHI" == "true" ]]; then
+    echo "Enabling and starting Avahi service..."
+    sudo systemctl enable --now avahi-daemon.service
+  fi
+
+  echo "Enabling and starting Docker service..."
+  sudo systemctl enable --now docker.service
+}
+
+# Function to install and setup Umbrel
+install_and_setup_umbrel() {
+  if [[ "$INSTALL_UMBREL" == "true" ]]; then
+    echo "Preparing Umbrel..."
+    mkdir -p "$UMBREL_INSTALL_PATH"
+    UMBREL_VERSION=$(curl --silent "https://api.github.com/repos/$UMBREL_REPO/releases/latest" | jq -r ".tag_name")
+    curl -L "https://github.com/$UMBREL_REPO/archive/$UMBREL_VERSION.tar.gz" | tar -xz --strip-components=1 -C "$UMBREL_INSTALL_PATH"
+     
+    cd "$UMBREL_INSTALL_PATH"
+    sudo ./scripts/configure
+    echo "Executing Umbrel start script..."
+    sudo ./scripts/start
+  fi
+}
+
+# Main function to orchestrate the setup
+main() {
+  ensure_aur_helper
+  install_dependencies
+  install_and_setup_umbrel
+  echo "Umbrel installation script has completed."
+}
+
+main "$@"
