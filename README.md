@@ -38,7 +38,7 @@ wget https://raw.githubusercontent.com/fr4nsys/umbrel-arch/main/umbrel-arch.sh
 ```bash
 ./umbrel-arch.sh
 ```
-4. *All in one** command:
+4. **All in one** command:
 
 ```bash
 wget https://raw.githubusercontent.com/fr4nsys/umbrel-arch/main/umbrel-arch.sh && chmod +x umbrel-arch.sh && ./umbrel-arch.sh
@@ -63,6 +63,11 @@ wget https://raw.githubusercontent.com/fr4nsys/umbrel-arch/main/umbrel-arch.sh &
 
 	WARN[0000] network default: network.external.name is deprecated. Please set network.name with external: true Docker Compose version 2.23.3
 
+- Error on Arch Linux ARM64 cause docker-comopose-v1 don´t support arm64
+	:: The following packages are not compatible with your architecture:
+    		docker-compose-v1-bin
+	:: Would you like to try build them anyway?
+	-bash: /usr/bin/docker-compose: cannot execute binary file: Exec format error
 
 ## Umbrel Arch Script
 
@@ -313,4 +318,4 @@ Contributions are welcome! If you have any improvements or bug fixes, please fee
 
 ## License
 
-This script is provided under [MIT License](LICENSE). Umbrel and its logo are trademarks of their respective owners and are used here for informational purposes only.
+This script is provided under [MIT License](LICENSE). Umbrel, Arch Linux and its logos are trademarks of their respective owners and are used here for informational purposes only.
