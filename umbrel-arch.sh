@@ -122,13 +122,36 @@ install_paru() {
   AUR_HELPER="paru"
 }
 
+# Function to check and replace docker-compose version if necessary
+check_and_replace_docker_compose() {
+  if ! command -v docker-compose > /dev/null || docker-compose --version | grep -q "docker-compose version 1"; then
+    echo "docker-compose version 1.x not found, installing docker-compose-v1-bin..."
+    $AUR_HELPER -S --needed --noconfirm docker-compose-v1-bin
+  elif docker-compose --version | grep -q "docker-compose version 2"; then
+    echo "Detected docker-compose version 2.x, which is not compatible with Umbrel."
+    read -p "Would you like to replace it with docker-compose-v1-bin from AUR? [Y/n] " response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY]|"")$ ]]; then
+      echo "Replacing docker-compose with docker-compose-v1-bin..."
+      $AUR_HELPER -Rns --noconfirm docker-compose
+      $AUR_HELPER -S --needed --noconfirm docker-compose-v1-bin
+    else
+      echo "Umbrel requires docker-compose version 1.x to operate correctly. Please manually install it and try again."
+      exit 1
+    fi
+  fi
+}
+
 # Function to install dependencies using pacman and AUR helper
 install_dependencies() {
   echo "Updating the system..."
   sudo pacman -Syu --noconfirm
 
   echo "Installing dependencies from official repositories..."
-  sudo pacman -S --noconfirm docker docker-compose avahi nss-mdns jq rsync curl git base-devel python inetutils
+  sudo pacman -S --noconfirm docker avahi nss-mdns jq rsync curl git base-devel python inetutils
+
+  if [[ "$INSTALL_DOCKER_COMPOSE" == "true" ]]; then
+    check_and_replace_docker_compose
+  fi
 
   if [[ "$INSTALL_YQ" == "true" ]]; then
     echo "Installing yq using $AUR_HELPER..."
@@ -151,12 +174,47 @@ install_dependencies() {
 
 # Function to install and setup Umbrel
 install_and_setup_umbrel() {
+
+  if [[ "$AUTO_START_UMBREL" == "true" ]]; then
+  echo "Configuring Umbrel to start automatically on boot..."
+  echo "
+[Unit]
+Wants=network-online.target
+After=network-online.target
+Wants=docker.service
+After=docker.service
+
+# This prevents us hitting restart rate limits and ensures we keep restarting indefinitely.
+StartLimitInterval=0
+
+[Service]
+Type=forking
+TimeoutStartSec=infinity
+TimeoutStopSec=16min
+ExecStart=${UMBREL_INSTALL_PATH}/scripts/start
+ExecStop=${UMBREL_INSTALL_PATH}/scripts/stop
+User=root
+Group=root
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=umbrel startup
+RemainAfterExit=yes
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target" | sudo tee "/etc/systemd/system/umbrel-startup.service"
+  sudo chmod 644 "/etc/systemd/system/umbrel-startup.service"
+  sudo systemctl daemon-reload
+  sudo systemctl enable "umbrel-startup.service"
+
+  fi
+
   if [[ "$INSTALL_UMBREL" == "true" ]]; then
     echo "Preparing Umbrel..."
     mkdir -p "$UMBREL_INSTALL_PATH"
     UMBREL_VERSION=$(curl --silent "https://api.github.com/repos/$UMBREL_REPO/releases/latest" | jq -r ".tag_name")
     curl -L "https://github.com/$UMBREL_REPO/archive/$UMBREL_VERSION.tar.gz" | tar -xz --strip-components=1 -C "$UMBREL_INSTALL_PATH"
-     
     cd "$UMBREL_INSTALL_PATH"
     sudo ./scripts/configure
     echo "Executing Umbrel start script..."
@@ -166,10 +224,15 @@ install_and_setup_umbrel() {
 
 # Main function to orchestrate the setup
 main() {
+  if [[ "$PRINT_DOCKER_WARNING" == "true" ]]; then
+    echo "WARNING: This script will install Docker, which may conflict with other Docker installations."
+  fi
+
   ensure_aur_helper
   install_dependencies
   install_and_setup_umbrel
-  echo "Umbrel installation script has completed."
+
+  echo "Umbrel installation and setup complete."
 }
 
-main "$@"
+main
