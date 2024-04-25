@@ -59,7 +59,7 @@ wget https://raw.githubusercontent.com/fr4nsys/umbrel-arch/main/umbrel-arch.sh &
 
 ## Known Issues
 
-- Errors with docker network, and dns relosution. Working on the dev script and issue open. (Fixed Replacing Docker Compose to version 1.x on the instalation script.)
+- ~~Errors with docker network, and dns relosution. Working on the dev script and issue open.~~ (Fixed Replacing Docker Compose to version 1.x on the instalation script.)
 
 	WARN[0000] network default: network.external.name is deprecated. Please set network.name with external: true Docker Compose version 2.23.3
 
