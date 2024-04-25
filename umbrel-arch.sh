@@ -15,7 +15,7 @@ INSTALL_DOCKER_COMPOSE="true"
 INSTALL_START_SCRIPT="true"
 INSTALL_UMBREL="true"
 AUTO_START_UMBREL="true"
-UMBREL_VERSION="release"
+UMBREL_VERSION="v0.5.4"
 UMBREL_REPO="getumbrel/umbrel"
 UMBREL_INSTALL_PATH="$HOME/umbrel"
 
@@ -213,8 +213,8 @@ WantedBy=multi-user.target" | sudo tee "/etc/systemd/system/umbrel-startup.servi
   if [[ "$INSTALL_UMBREL" == "true" ]]; then
     echo "Preparing Umbrel..."
     mkdir -p "$UMBREL_INSTALL_PATH"
-    UMBREL_VERSION=$(curl --silent "https://api.github.com/repos/$UMBREL_REPO/releases/latest" | jq -r ".tag_name")
-    curl -L "https://github.com/$UMBREL_REPO/archive/$UMBREL_VERSION.tar.gz" | tar -xz --strip-components=1 -C "$UMBREL_INSTALL_PATH"
+    #UMBREL_VERSION=$(curl --silent "https://api.github.com/repos/$UMBREL_REPO/releases/latest" | jq -r ".tag_name")
+    curl -L "https://github.com/$UMBREL_REPO/archive/$UMBREL_VERSION/$UMBREL_VERSION.tar.gz" | tar -xz --strip-components=1 -C "$UMBREL_INSTALL_PATH"
     cd "$UMBREL_INSTALL_PATH"
     sudo ./scripts/configure
     echo "Executing Umbrel start script..."
